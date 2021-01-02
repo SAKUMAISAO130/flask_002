@@ -1,9 +1,45 @@
 import os
-from flask import Flask, flash, request, redirect, url_for
+from flask import Flask, flash, request, redirect, url_for, render_template
 from werkzeug.utils import secure_filename
 
+
+
+"""
+初期設定
+"""
+def create_app(test_config=None):
+    # create and configure the app
+    app = Flask(__name__, instance_relative_config=True)
+    app.config.from_mapping(
+        SECRET_KEY='dev',
+        DATABASE=os.path.join(app.instance_path, 'flaskr.sqlite'),
+    )
+
+    if test_config is None:
+        # load the instance config, if it exists, when not testing
+        app.config.from_pyfile('config.py', silent=True)
+    else:
+        # load the test config if passed in
+        app.config.from_mapping(test_config)
+
+    # ensure the instance folder exists
+    try:
+        os.makedirs(app.instance_path)
+    except OSError:
+        pass
+
+    return app
+
+
+
+
+
+
+"""
+【設定】ファイルアップロード機能
+"""
 UPLOAD_FOLDER = '/home/sakumaisao/mysite/uploads/'
-ALLOWED_EXTENSIONS = {'csv','txt'}
+ALLOWED_EXTENSIONS = {'csv'} #{'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -11,7 +47,13 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
 
-#バリデーション
+
+
+
+
+"""
+バリデーション
+"""
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -19,66 +61,80 @@ def allowed_file(filename):
 
 
 
-#トップページ
-@app.route('/', methods=['GET', 'POST'])
+
+
+
+"""
+【ルーティング】トップページ
+"""
+@app.route('/', methods=['GET'])
 def upload_file():
+
+    return render_template('index.html')
+
+
+
+
+
+
+
+
+"""
+【ルーティング】結果ページ
+"""
+@app.route('/result_check', methods=['GET','POST'])
+def result_check():
 
     if request.method == 'POST':
 
         # アップロード形式が「file」で有ることのチェック
         if 'file' not in request.files:
-
-            return 'No file part'
-
             flash('No file part')
             return redirect(request.url)
+
         file = request.files['file']
 
         # アップロード名が「空でないこと」のチェック
         if file.filename == '':
-
-            return 'No selected file'
-
             flash('No selected file')
             return redirect(request.url)
 
         # バリデーションチェックが終了したら
         if file and allowed_file(file.filename):
 
-
             # アップロード処理
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
-            #【未実装】csvだった場合
             #【未実装】csvをチェックする
-
             #【未実装】チェック結果をて配列に保存する
-            check_result = {
+            result_dict = {
                 "count_data" : 102,
                 "count_null" : 3,
                 "count_error" : 1,
                 }
 
             #【未実装】チェック結果を表示させるページへリダイレクトする
+            return render_template('result.html', result_dict=result_dict)
+
+        else:
+            flash('バリデーションエラーです')
             return redirect('/')
 
+    else:
 
-    return '''
-    <!doctype html>
-    <title>CSV破損チェッカー（Flaskアプリケーション）</title>
-    <h1>CSV破損チェッカー</h1>
-    <p>チェックしたいcsvをアップロードしてください。</p>
-    <form method=post enctype=multipart/form-data>
-      <input type=file name=file>
-      <input type=submit value=Upload>
-    </form>
-    '''
+        return redirect('/')
 
 
 
-#結果ページ
-@app.route('/result_check', methods=['GET'])
-def result_check():
-    return render_template('index.html')
+
+
+
+
+"""
+【ルーティング】helloページ
+"""
+@app.route('/hello')
+def hello():
+    return 'Hello, World!'
 
